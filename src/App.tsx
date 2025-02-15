@@ -7,7 +7,7 @@ import { Network, Channel, ReceiveCb} from './network/network';
 function App() {
   const leftEditorRef = useRef<ace.Editor | null>(null);
   const rightEditorRef = useRef<ace.Editor | null>(null);
-  const network = useRef(new Network());
+  const network = useRef(new Network()); // 模拟网络，但是实际上仅用于发送消息而非实际使用，如果需要调整延迟则修改参数即可
   const leftDoc = useRef(new Doc('client1'));
   const rightDoc = useRef(new Doc('client2'));
   const isRemoteApplying = useRef(false);
