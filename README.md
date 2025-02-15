@@ -1,46 +1,34 @@
-# Getting Started with Create React App
+# Tiny-YJS Collaborative Editing Test Case
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+This project is a simple collaborative editing algorithm inspired by the `yjs` library. It implements a basic version of the collaborative editing protocol and includes local testing to simulate the collaborative editing experience.
 
-## Available Scripts
+## Overview
 
-In the project directory, you can run:
+The goal of this project is to implement a toy-level version of the collaborative editing algorithm based on `yjs`. The project focuses on testing and demonstrating how version vectors work in a collaborative document editing environment.
 
-### `npm start`
+## Workflow for Remote Collaborative Editing
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+To remotely use the collaborative editing algorithm, follow these 3 steps:
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+### Step 1: Broadcast and Retrieve Version Vectors
+- Send a broadcast to other clients to notify them of your current document state.
+- Each client should then respond with their version vector, which indicates the parts of the document they have.
 
-### `npm test`
+### Step 2: Retrieve Missing Items
+- Using the received version vector from the other clients, call `Doc.getMissing` to retrieve any missing items that are necessary to synchronize the document state with the other clients.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Step 3: Send Missing Items and Deleted Elements
+- Send the missing items (in the form of a `MissingList`) and a set of deleted elements (denoted as `ds`) to the other clients.
+- This ensures that all clients can apply the updates and stay synchronized with the latest version of the document.
 
-### `npm run build`
+## Local Testing
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+This project includes a local test environment that demonstrates how the collaborative algorithm works. You can test the algorithm by simulating multiple clients editing the same document locally.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### How to Run
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
-
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+1. Clone the repository.
+2. Install any necessary dependencies.
+3. Run the example to simulate a collaborative editing session.
+4. Follow the steps above to observe the algorithm in action.
+>>>>>>> 9fdc96befc12713c94a8f9ecdf1f72d7b3c00fba
