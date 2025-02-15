@@ -1,5 +1,3 @@
-import { Timer } from "./timer";
-
 export class Network {
   channelMap: Map<string, Channel>;
   delay: number;
@@ -38,34 +36,17 @@ export class Network {
   }
 }
 
-export type ReceiveCb = (message: string) => {};
+export type ReceiveCb = (message: string) => void;
 
 export class Channel {
   name: string;
   network: Network;
-  buffer: string[];
-  timer: Timer;
   receiveCbs: ReceiveCb[];
 
   public constructor(name: string, network: Network) {
     this.name = name;
     this.network = network;
-    this.buffer = [];
     this.receiveCbs = [];
-    // const delay = this.network.delay;
-    this.timer = new Timer(() => {
-      const message = this.buffer.shift();
-      if (
-        message !== undefined &&
-        message !== null &&
-        this.network.getEnable()
-      ) {
-        this.receiveCbs.forEach((cb) => {
-          cb(message);
-        });
-      }
-    }, this.network.delay);
-    this.timer.start();
   }
 
   public send(channelName: string, message: string) {
@@ -82,7 +63,6 @@ export class Channel {
       if (name === this.name) {
         continue;
       }
-      // console.log(`${this.name} Channel ${name} broadcast message: ${message}`);
       channel.write(message);
     }
   }
@@ -92,9 +72,10 @@ export class Channel {
   }
 
   public write(message: string) {
-    // console.log(`Channel ${this.name} wrote message: ${message}`);
     setTimeout(() => {
-      this.buffer.push(message);
+      if (this.network.getEnable()) {
+        this.receiveCbs.forEach((cb) => cb(message));
+      }
     }, this.network.delay);
   }
 }

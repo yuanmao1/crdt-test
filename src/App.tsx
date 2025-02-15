@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ace from 'ace-builds';
 import 'ace-builds/webpack-resolver';
 import { Doc } from './crdt/yjs';
@@ -11,6 +11,7 @@ function App() {
   const leftDoc = useRef(new Doc('client1'));
   const rightDoc = useRef(new Doc('client2'));
   const isRemoteApplying = useRef(false);
+  const [delay, setDelay] = useState(300); // 延迟状态
 
   // 初始化编辑器和网络通信
   useEffect(() => {
@@ -43,7 +44,8 @@ function App() {
       // 本地变化处理
       const handleLocalChange = (delta: any) => {
         if (isRemoteApplying.current) return;
-        console.log(localDoc.current.clientId, 'local change');
+        // console.log(localDoc.current.clientId, 'local change');
+        console.log(delta)
         try {
           const text = localDoc.current.getText("text");
           // const session = editor.getSession();
@@ -60,7 +62,7 @@ function App() {
           } 
           else if (delta.action === 'remove') {
             const start = getLinearIndex(editor, delta.start.row, delta.start.column);
-            const end = getLinearIndex(editor, delta.end.row, delta.end.column);
+            const end = start + delta.lines.join('\n').length;
             
             // 逆序删除避免索引变化
             for (let i = end - 1; i >= start; i--) {
@@ -70,9 +72,8 @@ function App() {
 
           // 发送更新到对端
           // const missing = localDoc.current.getMissing(remoteDoc.current.getVersion());
-          remoteDoc.current.merge(localDoc.current);
           channel.broadcast("need update");
-          console.log(channel.name, 'update sent');
+          // console.log(channel.name, 'update sent');
         } catch (error) {
           console.error('Local change error:', error);
         }
@@ -82,9 +83,10 @@ function App() {
       const handleRemoteUpdate = (message: string) => {
         try {
           isRemoteApplying.current = true;
+          localDoc.current.merge(remoteDoc.current)
           const newContent = localDoc.current.getText("text").toString();
           editor.setValue(newContent);
-          console.log(channel.name, 'update received');
+          // console.log(channel.name, 'update received');
         } catch (error) {
           console.error('Remote update error:', error);
         } finally {
@@ -127,12 +129,32 @@ function App() {
     };
   }, []);
 
+  // 处理滑块变化
+  const handleDelayChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newDelay = parseInt(event.target.value, 10);
+    setDelay(newDelay);
+    network.current.setDelay(newDelay); // 更新网络延迟
+  };
+
   return (
     <div className="App" style={{ 
       display: 'flex',
       height: '100vh',
-      width: '100vw'
+      width: '100vw',
+      flexDirection: 'column',
     }}>
+      <div style={{ padding: '10px', backgroundColor: '#f0f0f0' }}>
+          <label htmlFor="delay-slider">Network Delay: {delay}ms</label>
+          <input
+            id="delay-slider"
+            type="range"
+            min="0"
+            max="5000"
+            value={delay}
+            onChange={handleDelayChange}
+            style={{ width: '200px', marginLeft: '10px' }}
+          />
+      </div>
       <div 
         id="left-editor" 
         style={{ flex: 1, borderRight: '1px solid #ccc' }}
