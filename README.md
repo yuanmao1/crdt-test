@@ -31,4 +31,3 @@ This project includes a local test environment that demonstrates how the collabo
 2. Install any necessary dependencies.
 3. Run the example to simulate a collaborative editing session.
 4. Follow the steps above to observe the algorithm in action.
->>>>>>> 9fdc96befc12713c94a8f9ecdf1f72d7b3c00fba
