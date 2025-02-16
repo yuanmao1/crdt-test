@@ -20,10 +20,28 @@ function getLinearIndex(editor: ace.Editor, row: number, column: number): number
 
 interface EditorRegionProps {
   network: React.MutableRefObject<Network>;
+  isCommunicating: boolean;
+}
+
+const buttonContainerStyle = { 
+  width: '100%', 
+  height: '5%', 
+  display: 'flex', 
+  flexDirection: 'row' as 'row', 
+  justifyContent: 'flex-end', 
+  alignItems: 'center', 
+  padding: '5px'
+};
+
+const buttonStyle = {
+  width: '15%',
+  height: '100%',
+  marginRight: '20px',
 }
 
 export const EditorRegion: React.FC<EditorRegionProps> = ({
     network,
+    isCommunicating,
 }) => {
     const upperEditorRef = useRef<ace.Editor | null>(null);
     const downerEditorRef = useRef<ace.Editor | null>(null);
@@ -36,7 +54,7 @@ export const EditorRegion: React.FC<EditorRegionProps> = ({
       // 初始化Ace编辑器
       const initEditor = (elementId: string) => {
         const editor = ace.edit(elementId);
-        editor.setTheme('ace/theme/chrome');
+        editor.setTheme('ace/theme/monokai');
         editor.session.setMode('ace/mode/text');
         editor.session.setUseWrapMode(true);
         return editor;
@@ -63,7 +81,7 @@ export const EditorRegion: React.FC<EditorRegionProps> = ({
         const handleLocalChange = (delta: any) => {
           if (isRemoteApplying.current) return;
           // console.log(localDoc.current.clientId, 'local change');
-          console.log(delta)
+          // console.log(delta)
           try {
             const text = localDoc.current.getText("text");
             // const session = editor.getSession();
@@ -90,8 +108,10 @@ export const EditorRegion: React.FC<EditorRegionProps> = ({
 
             // 发送更新到对端
             // const missing = localDoc.current.getMissing(remoteDoc.current.getVersion());
-            channel.broadcast("need update");
-            // console.log(channel.name, 'update sent');
+            if (isCommunicating) {
+              channel.broadcast("need update");
+              // console.log(channel.name, 'update sent');
+            }
           } catch (error) {
             console.error('Local change error:', error);
           }
@@ -149,16 +169,21 @@ export const EditorRegion: React.FC<EditorRegionProps> = ({
     return (
         <div className="editor-region" style={{ 
             display: 'flex',
-            flex: 1,
             flexDirection: 'column',
-            width: '100%',
-            height: '100%',
+            width: '40%',
+            height: '90%',
+            border: '1px solid black',
+            overflow: 'hidden',
           }}>
             <div 
-                id="upper-editor" style={{ width: '50%', height: '50%' }}>
+                id="upper-editor" style={{ width: '100%', height: '47.5%', border: '1px solid black' }}>
+            </div>
+            <div style={buttonContainerStyle}>
+              <button onClick={() => {}} style={buttonStyle}> saveClient1 </button>
+              <button onClick={() => {}} style={buttonStyle}> saveClient2 </button>
             </div>
             <div
-                id="downer-editor" style={{ width: '50%', height: '50%' }}>
+                id="downer-editor" style={{ width: '100%', height: '47.5%', border: '1px solid black' }}>
             </div>
         </div>
     )

@@ -1,5 +1,5 @@
 // 首先实现Id，用于标识元素
-type Id = [string, number];
+type Id = [string, number]; // [client, clock]
 const Id = {
     equals(a: Id, b: Id): boolean {
         return a[0] === b[0] || (a[0] === b[0] && a[1] === b[1]);
@@ -105,6 +105,7 @@ export class Text {
     }
   
     public integrate(item: Item) {
+      // console.log("integrate", item.id);
       const doc = this.doc;
       const lastClock = doc.vector[item.id[0]] ?? -1;
       const clock = item.id[1];
