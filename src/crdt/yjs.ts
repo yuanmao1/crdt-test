@@ -391,20 +391,6 @@ export class Doc {
     public merge(src: Doc) {
         const missing: (ItemInfo | null)[] = src.getMissing(this.getVersion());
         this.applyUpdate(missing, src.deleted);
-        // 处理删除项
-        // for (const [clientId, items] of src.store) {
-        //   for (const item of items) {
-        //       if (item.isDeleted) {
-        //           const localItem = this.getItem(item.id);
-        //           if (localItem && !localItem.isDeleted) {
-        //               localItem.delete();
-        //               if (localItem.parent) {
-        //                   localItem.parent.length -= 1;
-        //               }
-        //           }
-        //       }
-        //   }
-        // }
     }
 
     public applyUpdate(missing: (ItemInfo | null)[], ds: Set<Id>): void {
