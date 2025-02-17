@@ -1,3 +1,5 @@
+import { cloneDeep } from 'lodash';
+
 // 首先实现Id，用于标识元素
 type Id = [string, number]; // [client, clock]
 const Id = {
@@ -498,31 +500,20 @@ export class Doc {
     }
 
     public clone(): Doc {
-      const clonedDoc = new Doc(this.clientId); // 创建一个新的 Doc 实例
-      clonedDoc.vector = { ...this.vector }; // 克隆版本向量
-      clonedDoc.deleted = new Set(this.deleted); // 克隆已删除的元素集合
+      const clonedDoc = new Doc(this.clientId);
+      clonedDoc.vector = cloneDeep(this.vector); // 深拷贝，处理复杂结构
+      clonedDoc.deleted = new Set(this.deleted);
+      clonedDoc.share = cloneDeep(this.share);
+      clonedDoc.store = new Map(this.store); // 深拷贝 store，确保没有共享引用
       
-      // 克隆所有文本实例
-      for (const [key, text] of this.share.entries()) {
-        clonedDoc.share.set(key, text); // 可以根据实际需求做更深层次的克隆
-      }
-  
-      // 克隆存储的项（store）
-      for (const [clientId, items] of this.store.entries()) {
-        const clonedItems = items.map(item => {
-          const itemInfo = item.getInfo(this); // 获取 item 信息
-          return Item.fromInfo(itemInfo, clonedDoc); // 使用克隆的 doc 创建新 item 实例
-        });
-        clonedDoc.store.set(clientId, clonedItems);
-      }
-  
-      return clonedDoc; // 返回克隆的文档
+      return clonedDoc;
     }
+    
 
     public replace(doc: Doc) {
       // 除了版本向量，其他所有内容都将被替换
-      this.share = doc.share;
-      this.store = doc.store;
-      this.deleted = doc.deleted;
+      this.share = cloneDeep(doc.share);
+      this.store = cloneDeep(doc.store);
+      this.deleted = cloneDeep(doc.deleted);
     }
 }

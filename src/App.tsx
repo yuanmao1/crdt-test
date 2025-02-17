@@ -23,10 +23,7 @@ function App() {
 
   const addSnapshot = (doc: Doc) => {
     const docCopy = doc.clone();
-    const handleClick = () => {
-      setCurrentSnapshot(docCopy);
-    };
-    setSnapshots(prev => [...prev, { content: docCopy, handleClick, time: new Date().toLocaleString() }]);
+    setSnapshots(prev => [...prev, { content: docCopy, handleClick: () => setCurrentSnapshot(docCopy), time: new Date().toLocaleString() }]);
   }
 
   return (
@@ -44,9 +41,13 @@ function App() {
         width: '100vw',
         flexDirection: 'row',
       }}>
-        <EditorRegion network={network} isCommunicating={isCommunicating} addSnapshot={addSnapshot} setCurrent={setCurrent} />
+        <EditorRegion network={network} 
+          isCommunicating={isCommunicating}
+          addSnapshot={addSnapshot}
+          setCurrent={setCurrent}
+          currentSnapshot={currentSnapshot} />
         <SnapshotList Snapshots={snapshots} />
-        <ShowDiff  current={current} snapshot={currentSnapshot} />
+        <ShowDiff  current={current} snapshot={currentSnapshot} network={network} />
       </div>
     </div>
   );

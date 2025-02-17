@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, use } from "react";
 import ace from 'ace-builds';
 import 'ace-builds/webpack-resolver';
 import { Doc } from './crdt/yjs';
@@ -22,6 +22,7 @@ interface EditorRegionProps {
   isCommunicating: boolean;
   addSnapshot: (doc: Doc) => void;
   setCurrent: (str: string) => void;
+  currentSnapshot: Doc | null;
 }
 
 const buttonContainerStyle = { 
@@ -45,6 +46,7 @@ export const EditorRegion: React.FC<EditorRegionProps> = ({
     isCommunicating,
     addSnapshot,
     setCurrent,
+    currentSnapshot,
 }) => {
     const upperEditorRef = useRef<ace.Editor | null>(null);
     const downerEditorRef = useRef<ace.Editor | null>(null);
@@ -52,11 +54,16 @@ export const EditorRegion: React.FC<EditorRegionProps> = ({
     const rightDoc = useRef(new Doc('client2'));
     const isRemoteApplying = useRef(false);
     const isCommunicatingRef = useRef(isCommunicating);
+    const currentSnapshotRef = useRef(currentSnapshot);
 
     // Synchronize isCommunicating prop change with the ref
     useEffect(() => {
       isCommunicatingRef.current = isCommunicating;
     }, [isCommunicating]);
+
+    useEffect(() => {
+      currentSnapshotRef.current = currentSnapshot;
+    }, [currentSnapshot]);
 
     // 初始化编辑器和网络通信
     useEffect(() => {
@@ -116,10 +123,10 @@ export const EditorRegion: React.FC<EditorRegionProps> = ({
             }
             // 发送更新到对端
             // const missing = localDoc.current.getMissing(remoteDoc.current.getVersion());
-            console.log("isCommunicatingRef.current: ", isCommunicatingRef.current);
+            // console.log("isCommunicatingRef.current: ", isCommunicatingRef.current);
             if (isCommunicatingRef.current) {
               channel.broadcast("need update");
-              console.log(channel.name, 'update sent');
+              // console.log(channel.name, 'update sent');
             }
           } catch (error) {
             console.error('Local change error:', error);
@@ -130,11 +137,19 @@ export const EditorRegion: React.FC<EditorRegionProps> = ({
         // 远程变化处理
         const handleRemoteUpdate = (message: string) => {
           try {
-            isRemoteApplying.current = true;
-            localDoc.current.merge(remoteDoc.current)
-            const newContent = localDoc.current.getText("text").toString();
-            editor.setValue(newContent);
-            // console.log(channel.name, 'update received');
+            if (message === "need update") {
+              isRemoteApplying.current = true;
+              localDoc.current.merge(remoteDoc.current)
+              const newContent = localDoc.current.getText("text").toString();
+              editor.setValue(newContent);
+              // console.log(channel.name, 'update received');
+            } else {
+              if (message === "apply") {
+                localDoc.current.replace(currentSnapshotRef.current!);
+                const newContent = localDoc.current.getText("text").toString();
+                editor.setValue(newContent);
+              }
+            }
           } catch (error) {
             console.error('Remote update error:', error);
           } finally {
@@ -189,7 +204,7 @@ export const EditorRegion: React.FC<EditorRegionProps> = ({
                 id="upper-editor" style={{ width: '100%', height: '47.5%', border: '1px solid black' }}>
             </div>
             <div style={buttonContainerStyle}>
-              <button onClick={() => {addSnapshot(leftDoc.current)}} style={buttonStyle}> saveClient1 </button>
+              <button onClick={() => {addSnapshot(leftDoc.current); console.log(leftDoc.current.getText("text").toString())}} style={buttonStyle}> saveClient1 </button>
               <button onClick={() => {addSnapshot(rightDoc.current)}} style={buttonStyle}> saveClient2 </button>
             </div>
             <div
