@@ -12,6 +12,7 @@
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "ace-builds": "^1.38.0",
+    "diff": "^7.0.0",
     "react": "^19.0.0",
     "react-ace": "^14.0.1",
     "react-dom": "^19.0.0",

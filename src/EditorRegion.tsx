@@ -4,7 +4,6 @@ import 'ace-builds/webpack-resolver';
 import { Doc } from './crdt/yjs';
 import { Network, Channel, ReceiveCb} from './network/network';
 
-
 // 计算线性位置索引
 function getLinearIndex(editor: ace.Editor, row: number, column: number): number {
   const session = editor.getSession();
@@ -21,6 +20,8 @@ function getLinearIndex(editor: ace.Editor, row: number, column: number): number
 interface EditorRegionProps {
   network: React.MutableRefObject<Network>;
   isCommunicating: boolean;
+  addSnapshot: (doc: Doc) => void;
+  setCurrent: (str: string) => void;
 }
 
 const buttonContainerStyle = { 
@@ -42,12 +43,20 @@ const buttonStyle = {
 export const EditorRegion: React.FC<EditorRegionProps> = ({
     network,
     isCommunicating,
+    addSnapshot,
+    setCurrent,
 }) => {
     const upperEditorRef = useRef<ace.Editor | null>(null);
     const downerEditorRef = useRef<ace.Editor | null>(null);
     const leftDoc = useRef(new Doc('client1'));
     const rightDoc = useRef(new Doc('client2'));
     const isRemoteApplying = useRef(false);
+    const isCommunicatingRef = useRef(isCommunicating);
+
+    // Synchronize isCommunicating prop change with the ref
+    useEffect(() => {
+      isCommunicatingRef.current = isCommunicating;
+    }, [isCommunicating]);
 
     // 初始化编辑器和网络通信
     useEffect(() => {
@@ -105,16 +114,17 @@ export const EditorRegion: React.FC<EditorRegionProps> = ({
                 text.delete(i);
               }
             }
-
             // 发送更新到对端
             // const missing = localDoc.current.getMissing(remoteDoc.current.getVersion());
-            if (isCommunicating) {
+            console.log("isCommunicatingRef.current: ", isCommunicatingRef.current);
+            if (isCommunicatingRef.current) {
               channel.broadcast("need update");
-              // console.log(channel.name, 'update sent');
+              console.log(channel.name, 'update sent');
             }
           } catch (error) {
             console.error('Local change error:', error);
           }
+          setCurrent(editor.getValue());
         };
 
         // 远程变化处理
@@ -179,8 +189,8 @@ export const EditorRegion: React.FC<EditorRegionProps> = ({
                 id="upper-editor" style={{ width: '100%', height: '47.5%', border: '1px solid black' }}>
             </div>
             <div style={buttonContainerStyle}>
-              <button onClick={() => {}} style={buttonStyle}> saveClient1 </button>
-              <button onClick={() => {}} style={buttonStyle}> saveClient2 </button>
+              <button onClick={() => {addSnapshot(leftDoc.current)}} style={buttonStyle}> saveClient1 </button>
+              <button onClick={() => {addSnapshot(rightDoc.current)}} style={buttonStyle}> saveClient2 </button>
             </div>
             <div
                 id="downer-editor" style={{ width: '100%', height: '47.5%', border: '1px solid black' }}>
