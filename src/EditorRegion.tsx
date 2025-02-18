@@ -56,11 +56,6 @@ export const EditorRegion: React.FC<EditorRegionProps> = ({
     const isCommunicatingRef = useRef(isCommunicating);
     const currentSnapshotRef = useRef(currentSnapshot);
 
-    // Synchronize isCommunicating prop change with the ref
-    useEffect(() => {
-      isCommunicatingRef.current = isCommunicating;
-    }, [isCommunicating]);
-
     useEffect(() => {
       currentSnapshotRef.current = currentSnapshot;
     }, [currentSnapshot]);
@@ -145,6 +140,7 @@ export const EditorRegion: React.FC<EditorRegionProps> = ({
               // console.log(channel.name, 'update received');
             } else {
               if (message === "apply") {
+                isRemoteApplying.current = true;
                 localDoc.current.replace(currentSnapshotRef.current!);
                 const newContent = localDoc.current.getText("text").toString();
                 editor.setValue(newContent);
@@ -191,6 +187,15 @@ export const EditorRegion: React.FC<EditorRegionProps> = ({
         network.current.removeChannel('client2');
       };
     }, []);
+
+    // Synchronize isCommunicating prop change with the ref
+    useEffect(() => {
+      isCommunicatingRef.current = isCommunicating;
+      if (isCommunicating) {
+        network.current.send("client2", "need update");
+      }
+    }, [isCommunicating]);
+
     return (
         <div className="editor-region" style={{ 
             display: 'flex',

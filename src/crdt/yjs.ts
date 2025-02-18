@@ -22,6 +22,7 @@ const Vector = {
       return true;
     }
     const clock = version[id[0]];
+    // console.log("in", id, clock);
     return clock !== null && clock >= id[1];
   },
 };
@@ -43,12 +44,14 @@ export class Text {
     _map: Map<string, Item | undefined>;
     length: number;
     doc: Doc; // Doc指向所属文档实例
+    version: number; // 版本号，用于标识元素的状态变化
   
     public constructor(doc: Doc) {
       this._start = null;
       this._map = new Map();
       this.length = 0;
       this.doc = doc;
+      this.version = 0;
     }
 
     public get item() {
@@ -69,6 +72,9 @@ export class Text {
   
     public insert(index: number, content: string) {
       const doc = this.doc;
+      if (doc.vector[doc.clientId] < this.version) {
+        doc.vector[doc.clientId] = this.version;
+      }
       const clock = doc.vector[doc.clientId] ?? -1;
   
       const left = this.findItem(index - 1);
@@ -393,6 +399,7 @@ export class Doc {
 
     public merge(src: Doc) {
         const missing: (ItemInfo | null)[] = src.getMissing(this.getVersion());
+        // console.log("merge", missing.length)
         this.applyUpdate(missing, src.deleted);
     }
 
@@ -514,6 +521,10 @@ export class Doc {
       // 除了版本向量，其他所有内容都将被替换
       this.share = cloneDeep(doc.share);
       this.store = cloneDeep(doc.store);
+      // console.log("nowContent", this.store);
+      for (const [_, value] of this.share.entries()) {
+        value.doc = this; // 重新绑定 doc 属性
+      }
       this.deleted = cloneDeep(doc.deleted);
     }
 }

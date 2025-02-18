@@ -23,7 +23,7 @@ function App() {
 
   const addSnapshot = (doc: Doc) => {
     const docCopy = doc.clone();
-    setSnapshots(prev => [...prev, { content: docCopy, handleClick: () => setCurrentSnapshot(docCopy), time: new Date().toLocaleString() }]);
+    setSnapshots(prev => [{ content: docCopy, handleClick: () => setCurrentSnapshot(docCopy), time: new Date().toLocaleString() }, ...prev]);
   }
 
   return (

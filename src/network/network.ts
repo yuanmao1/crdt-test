@@ -34,6 +34,15 @@ export class Network {
   public getEnable() {
     return this.enable;
   }
+
+  public send(channelName: string, message: string) {
+    const channel = this.getChannel(channelName);
+    if (channel) {
+      channel.write(message);
+    } else {
+      throw new Error(`Channel ${channelName} not found`);
+    }
+  }
 }
 
 export type ReceiveCb = (message: string) => void;
