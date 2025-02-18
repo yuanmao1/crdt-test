@@ -30,6 +30,7 @@ export const SnapshotList : React.FC<SnapshotListProps> = ({
         width: '12%',
         height: '90%',
         border: '1px solid black',
+        overflow: 'auto',
         }}>
       <ul style={listStyle}>
         {Snapshots.map((snapshot, index) => (
