@@ -1,6 +1,10 @@
 import { cloneDeep } from 'lodash';
 
-// 首先实现Id，用于标识元素
+enum Action {
+  INSERT,
+  DELETE
+}
+
 type Id = [string, number]; // [client, clock]
 const Id = {
     equals(a: Id, b: Id): boolean {
@@ -14,7 +18,6 @@ const Id = {
     },
 };
 
-// 实现版本向量类型Vector
 type Vector = Record<string, number>;
 const Vector = {
   in(id: Id | null, version: Vector) {
@@ -36,6 +39,8 @@ export type ItemInfo = {
     parentSub: string | null;
     isDeleted: boolean;
     content: string;
+    action: Action;
+    targetId: Id;
 };
 
 // 实现Text类型，用于描述文本元素，是Item的容器
@@ -75,7 +80,7 @@ export class Text {
       if (doc.vector[doc.clientId] < this.version) {
         doc.vector[doc.clientId] = this.version;
       }
-      const clock = doc.vector[doc.clientId] ?? -1;
+      const clock = doc.vector[doc.clientId];
   
       const left = this.findItem(index - 1);
       const right = left === null ? this._start : left.right;
@@ -99,7 +104,25 @@ export class Text {
       if (!item) {
         throw new Error("Item not found");
       }
-      this.doc.deleteItem(item.id);
+      const doc = this.doc;
+      if (doc.vector[doc.clientId] < this.version) {
+        doc.vector[doc.clientId] = this.version;
+      }
+      const clock = doc.vector[doc.clientId];
+      const deleteItem = new Item(
+        "",
+        [doc.clientId, clock + 1],
+        false,
+        null,
+        null,
+        null,
+        null,
+        this,
+        null,
+        Action.DELETE,
+        item.id
+      );
+      doc.addItem(deleteItem);
       item.delete();
       this.length -= 1;
     }
@@ -177,6 +200,8 @@ export class Item {
     parent: Text | null;
     parentSub: string | null;
 
+    action: Action;
+    targetId: Id;
     public constructor(
         content: string,
         id: Id,
@@ -187,6 +212,8 @@ export class Item {
         right: Item | null,
         parent: Text | null,
         parentSub: string | null,
+        action: Action = Action.INSERT,
+        targetId: Id | null = null
     ) {
         this.content = content;
         this.id = id;
@@ -197,6 +224,15 @@ export class Item {
         this.right = right;
         this.parent = parent;
         this.parentSub = parentSub;
+        this.action = action;
+        if (action === Action.DELETE) {
+          if (targetId === null) {
+            throw new Error("TargetId not found");
+          }
+          this.targetId = targetId;
+        } else {
+          this.targetId = id;
+        }
     }
 
     public getOriginLeft(): Id | null {
@@ -339,6 +375,8 @@ export class Item {
             parentSub: this.parentSub,
             isDeleted: this.isDeleted,
             content: this.content,
+            action: this.action,
+            targetId: this.targetId,
         };
     }
 
@@ -378,7 +416,6 @@ export class Doc {
     vector: Vector; // 版本向量
     clientId: string; // 客户端ID
     store: Map<string, Item[]>; // 通过 clientId 索引的元素集合
-    deleted: Set<Id>; // 已删除的元素ID集合
 
     public constructor(clientId?: string) {
         const cid = clientId ?? randomString(42);
@@ -386,7 +423,6 @@ export class Doc {
         this.vector = {};
         this.clientId = cid;
         this.store = new Map();
-        this.deleted = new Set();
     }
 
     public getText(name: string = ""): Text {
@@ -400,10 +436,10 @@ export class Doc {
     public merge(src: Doc) {
         const missing: (ItemInfo | null)[] = src.getMissing(this.getVersion());
         // console.log("merge", missing.length)
-        this.applyUpdate(missing, src.deleted);
+        this.applyUpdate(missing);
     }
 
-    public applyUpdate(missing: (ItemInfo | null)[], ds: Set<Id>): void {
+    public applyUpdate(missing: (ItemInfo | null)[]): void {
         const dest = this;
         let remaining = missing.length;
         while (remaining > 0) {
@@ -413,20 +449,20 @@ export class Doc {
                 if (item === null || !this.canInsert(item)) {
                     continue;
                 }
+                if (item.action === Action.DELETE) {
+                    const target = dest.getItem(item.targetId);
+                    if (target === null) {
+                        throw new Error("Target not found");
+                    }
+                    target.delete();
+                    missing[i] = null;
+                    remaining--;
+                    continue;
+                }
                 item.fillMissing(this);
                 item.parent?.integrate(item);
                 missing[i] = null;
                 remaining--;
-            }
-        }
-        // 处理删除项
-        for (const id of ds) {
-            const item = this.getItem(id);
-            if (item && !item.isDeleted) {
-                item.delete();
-                if (item.parent) {
-                    item.parent.length -= 1;
-                }
             }
         }
     }
@@ -473,10 +509,6 @@ export class Doc {
       this.store.set(clientId, list);
     }
 
-    deleteItem(id: Id) {
-      this.deleted.add(id);
-    }
-
     getItem(id: Id | null): Item | null {
       if (id === null) {
           return null;
@@ -509,7 +541,6 @@ export class Doc {
     public clone(): Doc {
       const clonedDoc = new Doc(this.clientId);
       clonedDoc.vector = cloneDeep(this.vector); // 深拷贝，处理复杂结构
-      clonedDoc.deleted = new Set(this.deleted);
       clonedDoc.share = cloneDeep(this.share);
       clonedDoc.store = new Map(this.store); // 深拷贝 store，确保没有共享引用
       
@@ -525,6 +556,5 @@ export class Doc {
       for (const [_, value] of this.share.entries()) {
         value.doc = this; // 重新绑定 doc 属性
       }
-      this.deleted = cloneDeep(doc.deleted);
     }
 }
