@@ -1,10 +1,6 @@
 import { cloneDeep } from 'lodash';
 
-enum Action {
-  INSERT,
-  DELETE
-}
-
+// 首先实现Id，用于标识元素
 type Id = [string, number]; // [client, clock]
 const Id = {
     equals(a: Id, b: Id): boolean {
@@ -18,6 +14,7 @@ const Id = {
     },
 };
 
+// 实现版本向量类型Vector
 type Vector = Record<string, number>;
 const Vector = {
   in(id: Id | null, version: Vector) {
@@ -39,8 +36,6 @@ export type ItemInfo = {
     parentSub: string | null;
     isDeleted: boolean;
     content: string;
-    action: Action;
-    targetId: Id;
 };
 
 // 实现Text类型，用于描述文本元素，是Item的容器
@@ -56,7 +51,7 @@ export class Text {
       this._map = new Map();
       this.length = 0;
       this.doc = doc;
-      this.version = -1;
+      this.version = 0;
     }
 
     public get item() {
@@ -80,7 +75,7 @@ export class Text {
       if (doc.vector[doc.clientId] < this.version) {
         doc.vector[doc.clientId] = this.version;
       }
-      const clock = doc.vector[doc.clientId];
+      const clock = doc.vector[doc.clientId] ?? -1;
   
       const left = this.findItem(index - 1);
       const right = left === null ? this._start : left.right;
@@ -104,25 +99,7 @@ export class Text {
       if (!item) {
         throw new Error("Item not found");
       }
-      const doc = this.doc;
-      if (doc.vector[doc.clientId] < this.version) {
-        doc.vector[doc.clientId] = this.version;
-      }
-      const clock = doc.vector[doc.clientId];
-      const deleteItem = new Item(
-        "",
-        [doc.clientId, clock + 1],
-        false,
-        null,
-        null,
-        null,
-        null,
-        this,
-        null,
-        Action.DELETE,
-        item.id
-      );
-      doc.addItem(deleteItem);
+      this.doc.deleteItem(item.id);
       item.delete();
       this.length -= 1;
     }
@@ -140,8 +117,7 @@ export class Text {
       const doc = this.doc;
       const lastClock = doc.vector[item.id[0]] ?? -1;
       const clock = item.id[1];
-      if (lastClock + 1 > clock) {
-        // console.log("lastClock", lastClock, "clock", clock);
+      if (lastClock + 1 !== clock) {
         throw new Error("Clock not match");
       }
       doc.vector[item.id[0]] = clock;
@@ -201,8 +177,6 @@ export class Item {
     parent: Text | null;
     parentSub: string | null;
 
-    action: Action;
-    targetId: Id;
     public constructor(
         content: string,
         id: Id,
@@ -213,8 +187,6 @@ export class Item {
         right: Item | null,
         parent: Text | null,
         parentSub: string | null,
-        action: Action = Action.INSERT,
-        targetId: Id | null = null
     ) {
         this.content = content;
         this.id = id;
@@ -225,15 +197,6 @@ export class Item {
         this.right = right;
         this.parent = parent;
         this.parentSub = parentSub;
-        this.action = action;
-        if (action === Action.DELETE) {
-          if (targetId === null) {
-            throw new Error("TargetId not found");
-          }
-          this.targetId = targetId;
-        } else {
-          this.targetId = id;
-        }
     }
 
     public getOriginLeft(): Id | null {
@@ -376,8 +339,6 @@ export class Item {
             parentSub: this.parentSub,
             isDeleted: this.isDeleted,
             content: this.content,
-            action: this.action,
-            targetId: this.targetId,
         };
     }
 
@@ -417,6 +378,7 @@ export class Doc {
     vector: Vector; // 版本向量
     clientId: string; // 客户端ID
     store: Map<string, Item[]>; // 通过 clientId 索引的元素集合
+    deleted: Set<Id>; // 已删除的元素ID集合
 
     public constructor(clientId?: string) {
         const cid = clientId ?? randomString(42);
@@ -424,6 +386,7 @@ export class Doc {
         this.vector = {};
         this.clientId = cid;
         this.store = new Map();
+        this.deleted = new Set();
     }
 
     public getText(name: string = ""): Text {
@@ -437,13 +400,12 @@ export class Doc {
     public merge(src: Doc) {
         const missing: (ItemInfo | null)[] = src.getMissing(this.getVersion());
         // console.log("merge", missing.length)
-        this.applyUpdate(missing);
+        this.applyUpdate(missing, src.deleted);
     }
 
-    public applyUpdate(missing: (ItemInfo | null)[]): void {
+    public applyUpdate(missing: (ItemInfo | null)[], ds: Set<Id>): void {
         const dest = this;
         let remaining = missing.length;
-        console.log("applyUpdate", missing.length);
         while (remaining > 0) {
             for (let i = 0; i < missing.length; i++) {
                 const o = missing[i];
@@ -451,20 +413,20 @@ export class Doc {
                 if (item === null || !this.canInsert(item)) {
                     continue;
                 }
-                if (item.action === Action.DELETE) {
-                    const target = dest.getItem(item.targetId);
-                    if (target === null) {
-                        throw new Error("Target not found");
-                    }
-                    target.delete();
-                    missing[i] = null;
-                    remaining--;
-                    continue;
-                }
                 item.fillMissing(this);
                 item.parent?.integrate(item);
                 missing[i] = null;
                 remaining--;
+            }
+        }
+        // 处理删除项
+        for (const id of ds) {
+            const item = this.getItem(id);
+            if (item && !item.isDeleted) {
+                item.delete();
+                if (item.parent) {
+                    item.parent.length -= 1;
+                }
             }
         }
     }
@@ -504,11 +466,15 @@ export class Doc {
     addItem(item: Item) {
       const clientId = item.id[0];
       const list = this.store.get(clientId) ?? [];
-      if (list.length > 0 && list[list.length - 1].id[1] + 1 > item.id[1]) {
+      if (list.length > 0 && list[list.length - 1].id[1] + 1 !== item.id[1]) {
         throw new Error("Clock not match");
       }
       list.push(item);
       this.store.set(clientId, list);
+    }
+
+    deleteItem(id: Id) {
+      this.deleted.add(id);
     }
 
     getItem(id: Id | null): Item | null {
@@ -543,6 +509,7 @@ export class Doc {
     public clone(): Doc {
       const clonedDoc = new Doc(this.clientId);
       clonedDoc.vector = cloneDeep(this.vector); // 深拷贝，处理复杂结构
+      clonedDoc.deleted = new Set(this.deleted);
       clonedDoc.share = cloneDeep(this.share);
       clonedDoc.store = new Map(this.store); // 深拷贝 store，确保没有共享引用
       
@@ -558,5 +525,6 @@ export class Doc {
       for (const [_, value] of this.share.entries()) {
         value.doc = this; // 重新绑定 doc 属性
       }
+      this.deleted = cloneDeep(doc.deleted);
     }
 }
