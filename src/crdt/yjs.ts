@@ -80,7 +80,7 @@ export class Text {
       if (doc.vector[doc.clientId] < this.version) {
         doc.vector[doc.clientId] = this.version;
       }
-      const clock = doc.vector[doc.clientId] ?? -1;
+      const clock = doc.vector[doc.clientId];
   
       const left = this.findItem(index - 1);
       const right = left === null ? this._start : left.right;
